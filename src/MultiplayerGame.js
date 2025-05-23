@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 
 export default function MultiplayerGame({ room, playerName, onBack }) {
   const [board, setBoard] = useState(room.board || Array(9).fill(null));
-  const [turn, setTurn] = useState(room.turn || 'X');
+  const [turn, setTurn] = useState(room.current_turn || 'X');
   const [winner, setWinner] = useState(null);
   const [status, setStatus] = useState(room.status);
   const [showModal, setShowModal] = useState(false);
@@ -11,22 +11,21 @@ export default function MultiplayerGame({ room, playerName, onBack }) {
   const isPlayerX = playerName === room.player1;
   const isPlayerO = playerName === room.player2;
 
-  // Listen for real-time changes to the room using new Supabase channel API
   useEffect(() => {
     const gameChannel = supabase
-      .channel('public:rooms')
+      .channel('public:tic_tac_toe_games')
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'rooms',
+          table: 'tic_tac_toe_games',
           filter: `id=eq.${room.id}`,
         },
         (payload) => {
           const updatedRoom = payload.new;
           setBoard(updatedRoom.board);
-          setTurn(updatedRoom.turn || 'X');
+          setTurn(updatedRoom.current_turn || 'X');
           setStatus(updatedRoom.status);
         }
       )
@@ -58,10 +57,9 @@ export default function MultiplayerGame({ room, playerName, onBack }) {
     newBoard[i] = turn;
     const nextTurn = turn === 'X' ? 'O' : 'X';
 
-    // Update supabase room
     const { error } = await supabase
-      .from('rooms')
-      .update({ board: newBoard, turn: nextTurn })
+      .from('tic_tac_toe_games')
+      .update({ board: newBoard, current_turn: nextTurn })
       .eq('id', room.id);
 
     if (error) console.error(error);
@@ -75,8 +73,12 @@ export default function MultiplayerGame({ room, playerName, onBack }) {
     setShowModal(false);
 
     const { error } = await supabase
-      .from('rooms')
-      .update({ board: Array(9).fill(null), turn: 'X', status: 'playing' })
+      .from('tic_tac_toe_games')
+      .update({
+        board: Array(9).fill(null),
+        current_turn: 'X',
+        status: 'playing',
+      })
       .eq('id', room.id);
 
     if (error) console.error(error);

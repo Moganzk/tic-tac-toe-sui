@@ -13,7 +13,7 @@
 
 .start-screen input {
   padding: 10px;
-  margin: 5px;
+  margin: 20px;
   font-size: 1rem;
   border: none;
   border-radius: 5px;
@@ -25,6 +25,9 @@
 }
 
 .start-btn {
+  margin-top: 20px;
+  margin-left: 20px;
+  margin-right: 20px;
   font-size: 1.2rem;
   padding: 10px 20px;
   background: #61dafb;
@@ -238,3 +241,110 @@ button:disabled {
   margin-bottom: 20px;
   font-size: 2rem;
 }
+/* Modal Input */
+.modal-content input {
+  width: 100%;
+  padding: 12px 15px;
+  font-size: 1.1rem;
+  border-radius: 6px;
+  border: none;
+  margin-bottom: 20px;
+  background-color: #333;
+  color: white;
+  outline: none;
+  box-sizing: border-box;
+}
+
+/* Modal Buttons Container */
+.modal-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+/* Modal Buttons */
+.modal-buttons button {
+  padding: 10px 24px;
+  font-size: 1rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+/* Confirm button */
+.modal-buttons .confirm-btn {
+  background-color: #61dafb;
+  color: black;
+}
+
+.modal-buttons .confirm-btn:hover {
+  background-color: #4ab0e6;
+}
+
+/* Cancel button */
+.modal-buttons .cancel-btn {
+  background-color: #444;
+  color: white;
+}
+
+.modal-buttons .cancel-btn:hover {
+  background-color: #666;
+}
+
+/* Disabled confirm button */
+.modal-buttons .confirm-btn:disabled {
+  background-color: #2c7aa0;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.start-btn {
+  font-size: 1.2rem;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #61dafb, #21a1f1);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 0 8px #61dafb;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.start-btn:hover {
+  animation: bounce 0.4s ease;
+  background: linear-gradient(135deg, #21a1f1, #61dafb);
+  box-shadow:
+    0 0 12px #61dafb,
+    0 0 24px #21a1f1,
+    0 0 36px #61dafb;
+  transform: scale(1.05);
+}
+
+.start-btn:active {
+  transform: scale(0.95);
+}
+.undo-button {
+  font-size: 1rem;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #f87171, #ef4444); /* Red tones */
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 0 8px #ef4444;
+  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.undo-button:hover {
+  background: linear-gradient(135deg, #ef4444, #f87171);
+  box-shadow:
+    0 0 12px #ef4444,
+    0 0 24px #f87171;
+  transform: scale(1.05);
+}
+
+.undo-button:active {
+  transform: scale(0.95);
+}
+
+
