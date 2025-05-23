@@ -1,7 +1,43 @@
+/* Core App Styles */
 .App {
   text-align: center;
+  background-color: #121212;
+  color: white;
+  min-height: 100vh;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
 }
 
+.start-screen input {
+  padding: 10px;
+  margin: 5px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 5px;
+}
+
+.start-screen h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.start-btn {
+  font-size: 1.2rem;
+  padding: 10px 20px;
+  background: #61dafb;
+  color: black;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.start-btn:hover {
+  background: #4ab0e6;
+}
+
+/* Logo Animations */
 .App-logo {
   height: 40vmin;
   pointer-events: none;
@@ -35,4 +71,170 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Global Styles */
+body {
+  font: 16px "Segoe UI", sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #121212;
+  color: #fff;
+}
+
+/* Game Layout */
+.game {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+/* Board + Info */
+.game-board {
+  margin-bottom: 20px;
+}
+
+.game-info ol {
+  padding-left: 0;
+}
+
+.game-info li {
+  list-style: decimal inside;
+  margin-bottom: 8px;
+}
+
+.game-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+/* Status Message */
+.status {
+  margin-bottom: 10px;
+  font-size: 1.5rem;
+}
+
+/* Square Styles */
+  .square {
+    width: 80px;
+    height: 80px;
+    font-size: 2rem;
+    background: #333;
+    color: white;
+    border: 2px solid #444;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+  }
+
+.board{
+  display: grid;
+  grid-template-columns: repeat(3, 80px);
+  gap: 5px;
+  margin: 20px auto;
+}
+
+/* Board Rows */
+.board-row:after {
+  clear: both;
+  content: "";
+  display: table;
+}
+
+/* Responsive Styling */
+@media (max-width: 600px) {
+  .square {
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+  }
+
+  .square.filled {
+    animation: pop 0.2s ease;
+  }
+
+  .status {
+    font-size: 16px;
+  }
+
+  .game {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .game-info ol {
+    text-align: center;
+  }
+
+  .board {
+    grid-template-columns: repeat(3, 60px);
+  }
+}
+/* Dark Mode */
+body {
+  background-color: #121212;
+  color: #ffffff;
+}
+/* Animate square when value changes */
+.square.animate {
+  animation: pop 0.3s ease-out;
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Button Styles */
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Undo Button Styling */
+.undo-button {
+  padding: 10px 16px;
+  font-size: 16px;
+  background-color: #61dafb;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 16px;
+}
+
+.undo-button:hover {
+  background-color: #4ab0e6;
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #1e1e1e;
+  padding: 30px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.modal-content h2 {
+  margin-bottom: 20px;
+  font-size: 2rem;
 }
