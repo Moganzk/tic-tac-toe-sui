@@ -1,102 +1,159 @@
 import { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient';
+import { useWallet } from './WalletProvider';
+import { SuiClient } from '@mysten/sui.js/client';
+import { TransactionBlock } from '@mysten/sui.js/transactions';
+import toast, { Toaster } from 'react-hot-toast';
 
-export default function MultiplayerGame({ room, playerName, onBack }) {
-  const [board, setBoard] = useState(room.board || Array(9).fill(null));
-  const [turn, setTurn] = useState(room.current_turn || 'X');
-  const [winner, setWinner] = useState(null);
-  const [status, setStatus] = useState(room.status);
+const SUI_RPC = 'https://fullnode.devnet.sui.io';
+
+export default function MultiplayerGame({ gameId, packageAddress, onBack }) {
+  const wallet = useWallet();
+  const [game, setGame] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [makingMove, setMakingMove] = useState(false);
+  const [error, setError] = useState('');
+  const [txDigest, setTxDigest] = useState('');
   const [showModal, setShowModal] = useState(false);
 
-  const isPlayerX = playerName === room.player1;
-  const isPlayerO = playerName === room.player2;
+  // Fetch game state from chain
+  useEffect(() => {
+    fetchGame();
+    const interval = setInterval(fetchGame, 4000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line
+  }, [gameId, packageAddress, txDigest]);
 
   useEffect(() => {
-    const gameChannel = supabase
-      .channel('public:tic_tac_toe_games')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'tic_tac_toe_games',
-          filter: `id=eq.${room.id}`,
-        },
-        (payload) => {
-          const updatedRoom = payload.new;
-          setBoard(updatedRoom.board);
-          setTurn(updatedRoom.current_turn || 'X');
-          setStatus(updatedRoom.status);
-        }
-      )
-      .subscribe();
+    if (game && game.status === 2) setShowModal(true);
+  }, [game]);
 
-    return () => {
-      supabase.removeChannel(gameChannel);
-    };
-  }, [room.id]);
-
-  useEffect(() => {
-    const win = calculateWinner(board);
-    if (win) {
-      setWinner(win);
-      setStatus('finished');
-      setShowModal(true);
-    } else if (board.every(Boolean)) {
-      setWinner(null);
-      setStatus('finished');
-      setShowModal(true);
+  async function fetchGame() {
+    setLoading(true);
+    setError('');
+    try {
+      const client = new SuiClient({ url: SUI_RPC });
+      const resp = await client.getObject({
+        id: gameId,
+        options: { showContent: true },
+      });
+      if (resp.data && resp.data.content && resp.data.content.fields) {
+        setGame(resp.data.content.fields);
+      } else {
+        setError('Game not found or invalid format');
+      }
+    } catch (e) {
+      setError('Failed to fetch game');
     }
-  }, [board]);
+    setLoading(false);
+  }
 
   async function makeMove(i) {
-    if (board[i] || winner || status !== 'playing') return;
-    if ((turn === 'X' && !isPlayerX) || (turn === 'O' && !isPlayerO)) return;
-
-    const newBoard = board.slice();
-    newBoard[i] = turn;
-    const nextTurn = turn === 'X' ? 'O' : 'X';
-
-    const { error } = await supabase
-      .from('tic_tac_toe_games')
-      .update({ board: newBoard, current_turn: nextTurn })
-      .eq('id', room.id);
-
-    if (error) console.error(error);
+    if (!game || makingMove || game.status !== 1) return;
+    const isX = wallet.account?.address === game.player_x;
+    const isO = wallet.account?.address === game.player_o;
+    const isMyTurn = (game.turn === 1 && isX) || (game.turn === 2 && isO);
+    if (!isMyTurn) return;
+    if (game.board[i] !== 0) return;
+    setMakingMove(true);
+    setError('');
+    setTxDigest('');
+    try {
+      const row = Math.floor(i / 3);
+      const col = i % 3;
+      const tx = new TransactionBlock();
+      tx.moveCall({
+        target: `${packageAddress}::tic_tac_toe_sui::make_move`,
+        arguments: [
+          tx.object(gameId),
+          tx.pure.u8(row),
+          tx.pure.u8(col),
+        ],
+      });
+      const result = await wallet.signAndExecuteTransactionBlock({
+        transactionBlock: tx,
+        options: { showEffects: true },
+      });
+      setTxDigest(result.digest);
+      setShowModal(false);
+      toast.success('Move submitted!');
+    } catch (e) {
+      setError(e.message || 'Failed to make move');
+      toast.error(e.message || 'Failed to make move');
+    }
+    setMakingMove(false);
   }
 
-  async function rematch() {
-    setBoard(Array(9).fill(null));
-    setTurn('X');
-    setWinner(null);
-    setStatus('playing');
-    setShowModal(false);
-
-    const { error } = await supabase
-      .from('tic_tac_toe_games')
-      .update({
-        board: Array(9).fill(null),
-        current_turn: 'X',
-        status: 'playing',
-      })
-      .eq('id', room.id);
-
-    if (error) console.error(error);
+  function renderStatus() {
+    if (!game) return '';
+    if (game.status === 0) return 'Waiting for second player...';
+    if (game.status === 1) {
+      const isX = wallet.account?.address === game.player_x;
+      const isO = wallet.account?.address === game.player_o;
+      const turn = game.turn === 1 ? 'X' : 'O';
+      let yourTurn = '';
+      if ((game.turn === 1 && isX) || (game.turn === 2 && isO)) {
+        yourTurn = ' (Your turn)';
+      }
+      return `Turn: ${turn}${yourTurn}`;
+    }
+    if (game.status === 2) {
+      if (game.result === 1) return 'X wins!';
+      if (game.result === 2) return 'O wins!';
+      if (game.result === 3) return 'Draw!';
+    }
+    return '';
   }
 
-  function winnerName() {
-    if (!winner) return null;
-    if (winner === 'X') return room.player1;
-    if (winner === 'O') return room.player2;
+  function renderBoard() {
+    if (!game) return null;
+    const isX = wallet.account?.address === game.player_x;
+    const isO = wallet.account?.address === game.player_o;
+    const isMyTurn = (game.turn === 1 && isX) || (game.turn === 2 && isO);
+
+    return (
+      <div className="board">
+        {game.board.map((cell, i) => (
+          <button
+            key={i}
+            className={`square ${cell ? 'animate' : ''}`}
+            onClick={() => makeMove(i)}
+            disabled={
+              makingMove ||
+              game.status !== 1 ||
+              cell !== 0 ||
+              !isMyTurn
+            }
+          >
+            {cell === 1 ? 'X' : cell === 2 ? 'O' : ''}
+          </button>
+        ))}
+      </div>
+    );
   }
 
   return (
     <div className="game">
-      <h1>Online Multiplayer Game</h1>
-      <p>
-        You are playing as: <strong>{isPlayerX ? 'X' : isPlayerO ? 'O' : 'Spectator'}</strong>
-      </p>
-      <Board squares={board} onClick={makeMove} disabled={status !== 'playing' || winner} />
+      <Toaster />
+      <h1>On-Chain Multiplayer Game</h1>
+      <div className="status">{renderStatus()}</div>
+      {game && (
+        <div style={{ marginBottom: 8 }}>
+          <div><strong>X:</strong> {game.player_x}</div>
+          <div><strong>O:</strong> {game.player_o || '(waiting...)'}</div>
+          <div><strong>You:</strong> {wallet.account?.address}</div>
+        </div>
+      )}
+      <button className="start-btn" onClick={fetchGame} disabled={loading}>
+        Refresh
+      </button>
+      {(loading || makingMove) && <div className="spinner">Loading...</div>}
+      {loading ? (
+        <div>Loading game...</div>
+      ) : error ? (
+        <div style={{ color: 'red' }}>{error}</div>
+      ) : (
+        renderBoard()
+      )}
 
       <div className="game-buttons">
         <button className="undo-button" onClick={onBack}>
@@ -107,47 +164,23 @@ export default function MultiplayerGame({ room, playerName, onBack }) {
       {showModal && (
         <div className="modal">
           <div className="modal-content">
-            <h2>{winner ? `🎉 ${winnerName()} wins!` : '🤝 It’s a draw!'}</h2>
-            <button className="start-btn" onClick={rematch}>
-              Rematch
-            </button>
-            <button className="start-btn" onClick={onBack} style={{ marginLeft: '10px' }}>
+            <h2>Game Over</h2>
+            <div>
+              {game.result === 1 && 'X wins!'}
+              {game.result === 2 && 'O wins!'}
+              {game.result === 3 && 'Draw!'}
+            </div>
+            <button className="start-btn" onClick={onBack}>
               Back to Lobby
             </button>
           </div>
         </div>
       )}
+      {txDigest && (
+        <div>
+          Last Tx: <a href={`https://suiexplorer.com/txblock/${txDigest}?network=devnet`} target="_blank" rel="noopener noreferrer">{txDigest}</a>
+        </div>
+      )}
     </div>
   );
-}
-
-function Board({ squares, onClick, disabled }) {
-  function handleClick(i) {
-    if (disabled) return;
-    onClick(i);
-  }
-
-  return (
-    <div className="board">
-      {squares.map((val, i) => (
-        <button key={i} className={`square ${val ? 'animate' : ''}`} onClick={() => handleClick(i)}>
-          {val}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function calculateWinner(squares) {
-  const lines = [
-    [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8],
-    [0,4,8],[2,4,6]
-  ];
-  for (let [a,b,c] of lines) {
-    if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-      return squares[a];
-    }
-  }
-  return null;
 }

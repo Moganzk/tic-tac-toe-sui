@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@mysten/sui.js": "^0.54.1",
+    "@suiet/wallet-kit": "^0.4.1",
     "@supabase/supabase-js": "^2.49.8",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
@@ -10,6 +12,7 @@
     "@testing-library/user-event": "^13.5.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-hot-toast": "^2.5.2",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"
   },
@@ -36,5 +39,10 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  }
+  },
+  "description": "A decentralized Tic Tac Toe game powered by smart contracts on the Sui blockchain. Two players can play entirely on-chain, with all game logic, state, and outcomes managed securely and transparently through Sui Move modules.",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

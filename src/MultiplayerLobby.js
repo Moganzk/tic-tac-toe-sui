@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import MultiplayerGame from './MultiplayerGame';
+import './App.css';
+import { useWallet } from './WalletProvider';
+import { TransactionBlock } from '@mysten/sui.js/transactions';
+import { SuiClient } from '@mysten/sui.js/client';
+
+const SUI_RPC = 'https://fullnode.devnet.sui.io';
 
 export default function MultiplayerLobby({ onBack }) {
   const [rooms, setRooms] = useState([]);
@@ -10,9 +16,21 @@ export default function MultiplayerLobby({ onBack }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
   const [newPlayerName, setNewPlayerName] = useState('');
-  
+  const [packageAddress, setPackageAddress] = useState('');
+  const [addressInput, setAddressInput] = useState('');
+
   // Track actual player in current game
   const [playerName, setPlayerName] = useState('');
+
+  const wallet = useWallet();
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState('');
+  const [txDigest, setTxDigest] = useState('');
+
+  // On-chain games
+  const [onChainGames, setOnChainGames] = useState([]);
+  const [fetchingOnChain, setFetchingOnChain] = useState(false);
+  const [onChainGameId, setOnChainGameId] = useState(null);
 
   // Fetch rooms on mount and real-time updates
   useEffect(() => {
@@ -68,7 +86,7 @@ export default function MultiplayerLobby({ onBack }) {
     }
 
     setCurrentRoom(data);
-    setPlayerName(newPlayerName.trim()); // Set actual player name here
+    setPlayerName(newPlayerName.trim());
     setShowCreateModal(false);
     setNewRoomName('');
     setNewPlayerName('');
@@ -109,9 +127,103 @@ export default function MultiplayerLobby({ onBack }) {
     }
 
     setCurrentRoom({ ...room, player2: newPlayerName.trim(), status: 'playing' });
-    setPlayerName(newPlayerName.trim()); // Set actual player name here
+    setPlayerName(newPlayerName.trim());
   }
 
+  // On-chain integration
+
+  // Fetch on-chain games when packageAddress or txDigest changes
+  useEffect(() => {
+    if (packageAddress && isValidSuiAddress(packageAddress)) {
+      fetchOnChainGames();
+    }
+    // eslint-disable-next-line
+  }, [packageAddress, txDigest]);
+
+  async function fetchOnChainGames() {
+    setFetchingOnChain(true);
+    setError('');
+    try {
+      const client = new SuiClient({ url: SUI_RPC });
+      // Query all objects of type Game for this package
+      const resp = await client.getOwnedObjects({
+        owner: packageAddress,
+        filter: { StructType: `${packageAddress}::tic_tac_toe_sui::Game` },
+        options: { showType: true, showContent: true },
+      });
+      setOnChainGames(resp.data || []);
+    } catch (e) {
+      setError('Failed to fetch on-chain games');
+    }
+    setFetchingOnChain(false);
+  }
+
+  async function createGameOnChain() {
+    setCreating(true);
+    setError('');
+    setTxDigest('');
+    try {
+      const tx = new TransactionBlock();
+      tx.moveCall({
+        target: `${packageAddress}::tic_tac_toe_sui::create_game`,
+        arguments: [],
+      });
+      const result = await wallet.signAndExecuteTransactionBlock({
+        transactionBlock: tx,
+        options: { showEffects: true },
+      });
+      setTxDigest(result.digest);
+      // Get the new game objectId from the transaction result
+      const created = result.effects?.created?.[0]?.reference?.objectId;
+      if (created) setOnChainGameId(created);
+    } catch (e) {
+      setError(e.message || 'Failed to create game');
+    }
+    setCreating(false);
+  }
+
+  async function joinOnChainGame(gameId) {
+    setCreating(true);
+    setError('');
+    setTxDigest('');
+    try {
+      const tx = new TransactionBlock();
+      tx.moveCall({
+        target: `${packageAddress}::tic_tac_toe_sui::join_game`,
+        arguments: [tx.object(gameId)],
+      });
+      const result = await wallet.signAndExecuteTransactionBlock({
+        transactionBlock: tx,
+        options: { showEffects: true },
+      });
+      setTxDigest(result.digest);
+      setOnChainGameId(gameId);
+    } catch (e) {
+      setError(e.message || 'Failed to join game');
+    }
+    setCreating(false);
+  }
+
+  // Only allow valid Sui addresses (starts with 0x and 64 hex chars)
+  function isValidSuiAddress(addr) {
+    return /^0x[a-fA-F0-9]{64}$/.test(addr);
+  }
+
+  // On-chain game view
+  if (onChainGameId) {
+    return (
+      <MultiplayerGame
+        gameId={onChainGameId}
+        packageAddress={packageAddress}
+        onBack={() => {
+          setOnChainGameId(null);
+          setTxDigest('');
+        }}
+      />
+    );
+  }
+
+  // Supabase game view
   if (currentRoom) {
     return <MultiplayerGame room={currentRoom} playerName={playerName} onBack={onBack} />;
   }
@@ -149,7 +261,6 @@ export default function MultiplayerLobby({ onBack }) {
                 setShowCreateModal(true);
                 setNewRoomName('');
                 setNewPlayerName('');
-                // Store the id of the room user wants to join, join after entering name
                 window.pendingJoinRoomId = room.id;
               }}
             >
@@ -175,7 +286,7 @@ export default function MultiplayerLobby({ onBack }) {
             <input
               type="text"
               placeholder="Your Name"
-              className="w-full max-w-xs px-5 py-3 mb-5 text-white bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 rounded-xl shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-75 placeholder-gray-400 placeholder-opacity-75 transition duration-300 ease-in-out transform hover:scale-105"
+              className="start-screen"
               value={newPlayerName}
               onChange={(e) => setNewPlayerName(e.target.value)}
             />
@@ -183,11 +294,11 @@ export default function MultiplayerLobby({ onBack }) {
               <input
                 type="text"
                 placeholder="Room Name"
-                className="w-full max-w-xs px-4 py-3 mb-4 text-white bg-gray-800 rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-gray-400 transition"
+                className="start-screen"
                 value={newRoomName}
                 onChange={(e) => setNewRoomName(e.target.value)}
               />
-            )}
+            )}  
 
             <div className="flex justify-end space-x-3">
               <button
@@ -206,12 +317,10 @@ export default function MultiplayerLobby({ onBack }) {
                 className="start-btn"
                 onClick={async () => {
                   if (window.pendingJoinRoomId) {
-                    // Join the selected room after entering name
                     await joinRoom(window.pendingJoinRoomId);
                     window.pendingJoinRoomId = null;
                     setShowCreateModal(false);
                   } else {
-                    // Create a new room
                     await createRoom();
                   }
                 }}
@@ -222,6 +331,72 @@ export default function MultiplayerLobby({ onBack }) {
           </div>
         </div>
       )}
+
+      <h2 className="text-xl font-semibold mb-4 mt-8">Or Create On-Chain Game</h2>
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Enter Sui Package Address (0x...)"
+          className="start-screen"
+          value={addressInput}
+          onChange={e => {
+            setAddressInput(e.target.value);
+            setError('');
+          }}
+        />
+        <button
+          className="start-btn"
+          style={{ marginLeft: 8 }}
+          onClick={() => {
+            if (isValidSuiAddress(addressInput)) {
+              setPackageAddress(addressInput);
+              setError('');
+            } else {
+              setError('Invalid Sui address. Must be 0x + 64 hex chars.');
+            }
+          }}
+        >
+          Set Address
+        </button>
+      </div>
+      {packageAddress && !error && (
+        <div className="mb-2 text-green-700">Using package: {packageAddress}</div>
+      )}
+
+      <button
+        className="start-btn"
+        onClick={createGameOnChain}
+        disabled={creating || !wallet.account || !isValidSuiAddress(packageAddress)}
+      >
+        {creating ? 'Creating...' : 'Create On-Chain Game'}
+      </button>
+      {txDigest && <div>Game created! Tx: {txDigest}</div>}
+      {error && <div style={{ color: 'red' }}>{error}</div>}
+
+      <h2 className="text-xl font-semibold mb-4 mt-8">On-Chain Games</h2>
+      {fetchingOnChain && <div>Loading on-chain games...</div>}
+      {!fetchingOnChain && onChainGames.length === 0 && (
+        <div className="text-gray-600">No on-chain games found for this package.</div>
+      )}
+      <ul className="space-y-3">
+        {onChainGames.map((gameObj) => (
+          <li
+            key={gameObj.objectId}
+            className="flex justify-between items-center border border-blue-300 rounded px-4 py-2"
+          >
+            <div>
+              <strong>Game ID:</strong> {gameObj.objectId}
+            </div>
+            <button
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1 px-3 rounded"
+              onClick={() => joinOnChainGame(gameObj.objectId)}
+              disabled={creating}
+            >
+              Join On-Chain
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

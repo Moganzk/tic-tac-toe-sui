@@ -1,52 +1,79 @@
-# 🕹️ Tic Tac Toe on Sui Blockchain
+# 🎮 Tic Tac Toe on Sui Blockchain
 
-This is a simple **Tic Tac Toe game implemented as a smart contract** using the [Sui Move](https://docs.sui.io/) programming language and deployed on the Sui blockchain.
+A decentralized Tic Tac Toe game powered by smart contracts on the Sui blockchain. Two players can play entirely on-chain, with all game logic, state, and outcomes managed securely and transparently through Sui Move modules.
 
-## 📦 What This Project Does
+---
 
-- Allows two players to play a classic Tic Tac Toe game on-chain.
-- Stores game state on the blockchain using Sui’s object model.
-- Ensures fairness: players take turns, and the game enforces valid moves.
-- Determines the winner or draw on-chain after each move.
+## 🚀 Features
 
-## ⚙️ How It Works
+- **Fully On-Chain Gameplay**  
+  All moves, turns, and results are stored and validated on the blockchain.
 
-- A player **creates a new game object**, which is stored on the blockchain.
-- Another player joins the game.
-- Players take turns by calling `make_move(row, col)` function.
-- The game checks for:
-  - Valid moves (empty cell, correct turn)
-  - Win condition (3 in a row)
-  - Draw (board full)
-- Once the game is over, the result is stored and no further moves are allowed.
+- **Smart Contract-Enforced Rules**  
+  - Players alternate turns.
+  - Only the current player can make a move.
+  - Automatic detection of win and draw conditions.
 
-## 🧱 Core Move Modules
+- **Decentralized Game Lifecycle**  
+  - **Create Game** – Start a new on-chain game instance.  
+  - **Join Game** – A second player can join the game.  
+  - **Play Game** – Players take turns by calling `make_move(row, col)`.  
+  - **Game End** – Contract determines if someone wins or the game ends in a draw.
 
-### `TicTacToe.move`
+---
 
-- Defines the `Game` struct with:
-  - Board state (`vector<vector<u8>>`)
-  - Player addresses
-  - Turn control
-  - Winner (if any)
+## 🛠️ Technical Overview
 
-- Public functions:
-  - `create_game`: Initializes a game with player1.
-  - `join_game`: Adds player2 to the game.
-  - `make_move`: Validates and applies a move.
-  - `check_winner`: Checks rows, columns, and diagonals for a win.
-  - `is_draw`: Checks if all cells are filled.
+- **Language:** Move (via the Sui framework)
+- **Architecture:**  
+  - Each game is stored as a unique on-chain object.  
+  - The state includes:
+    - 3x3 game board
+    - Players (X and O)
+    - Current turn
+    - Game status (`waiting`, `in_progress`, `complete`)
+    - Result (`X wins`, `O wins`, or `draw`)
 
-## 🧪 Running Locally
+---
 
-### Prerequisites
+## 🧩 Game Logic
 
-- [Sui CLI](https://docs.sui.io/build/install)
-- Git
+- **Validations per Move:**
+  - It must be the player's turn.
+  - Coordinates must be within bounds.
+  - The selected cell must be empty.
 
-### Steps
+- **After Every Move:**
+  - The contract checks for a win condition.
+  - If the board is full with no winner, the game ends in a draw.
 
-```bash
-# Clone the repo
-git clone https://github.com/Moganzk/sui-tic-tac-toe.git
-cd sui-tic-tac-toe
+- **Restrictions:**
+  - No moves if the game is not in progress.
+  - Players cannot move out of turn or into filled cells.
+
+---
+
+## 🧪 Developer Usage
+
+> 🚧 Deployment and CLI usage instructions coming soon.
+
+This repo currently contains only the core smart contract logic. Integration with a frontend is planned.
+
+---
+
+## 📂 Project Structure
+
+├── sources/
+│ └── tic_tac_toe.move # Smart contract logic in Move
+├── Move.toml # Project configuration
+├── README.md # Documentation
+
+
+---
+
+## ✅ To-Do
+
+- [ ] Frontend DApp integration
+- [ ] Rematch functionality
+- [ ] Move history tracking
+- [ ] Gas usage optimization
