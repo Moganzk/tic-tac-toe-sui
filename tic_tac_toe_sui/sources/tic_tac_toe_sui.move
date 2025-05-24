@@ -1,9 +1,8 @@
 module tic_tac_toe_sui::tic_tac_toe_sui {
-    use sui::object::{Self, UID};
-    use sui::tx_context::{Self, TxContext};
+    use sui::object;
+    use sui::tx_context;
     use sui::transfer;
     use std::vector;
-    use std::option;
 
     /// Game status: 0 = waiting, 1 = playing, 2 = finished
     const STATUS_WAITING: u8 = 0;
@@ -20,23 +19,33 @@ module tic_tac_toe_sui::tic_tac_toe_sui {
         id: UID,
         player_x: address,
         player_o: address,
-        board: vector<u8>, // 0 = empty, 1 = X, 2 = O
-        turn: u8, // 1 = X, 2 = O
+        board: vector<u8>,
+        turn: u8,
         status: u8,
         result: u8,
     }
 
-    public entry fun create_game(ctx: &mut TxContext): Game {
-        let player_x = tx_context::sender(ctx);
-        Game {
+    public entry fun create_game(ctx: &mut TxContext) {
+        let game = Game {
             id: object::new(ctx),
-            player_x,
-            player_o: 0x0,
-            board: vector::repeat(0u8, 9),
+            player_x: tx_context::sender(ctx),
+            player_o: @0x0,
+            board: create_empty_board(),
             turn: 1,
             status: STATUS_WAITING,
             result: RESULT_NONE,
-        }
+        };
+        transfer::transfer(game, tx_context::sender(ctx))
+    }
+
+    fun create_empty_board(): vector<u8> {
+        let mut board = vector::empty();
+        let mut i = 0;
+        while (i < 9) {
+            vector::push_back(&mut board, 0);
+            i = i + 1;
+        };
+        board
     }
 
     public entry fun join_game(game: &mut Game, ctx: &mut TxContext) {
@@ -50,22 +59,21 @@ module tic_tac_toe_sui::tic_tac_toe_sui {
     public entry fun make_move(game: &mut Game, row: u8, col: u8, ctx: &mut TxContext) {
         assert!(game.status == STATUS_PLAYING, 2);
         let sender = tx_context::sender(ctx);
-        let idx = (row as u64) * 3 + (col as u64);
+        let idx = ((row as u64) * 3 + (col as u64));
         assert!(idx < 9, 3);
-        assert!(*vector::borrow(&game.board, idx) == 0u8, 4);
+        assert!(*vector::borrow(&game.board, idx) == 0, 4);
 
-        // Only correct player can move
         if (game.turn == 1) {
             assert!(sender == game.player_x, 5);
         } else {
             assert!(sender == game.player_o, 6);
-        }
+        };
 
-        *vector::borrow_mut(&mut game.board, idx) = game.turn;
+        let current_turn = game.turn;
+        *vector::borrow_mut(&mut game.board, idx) = current_turn;
 
-        // Check for win/draw
         let winner = check_winner(&game.board);
-        if (winner != 0u8) {
+        if (winner != 0) {
             game.status = STATUS_FINISHED;
             game.result = winner;
         } else {
@@ -73,12 +81,7 @@ module tic_tac_toe_sui::tic_tac_toe_sui {
                 game.status = STATUS_FINISHED;
                 game.result = RESULT_DRAW;
             } else {
-                // Switch turn
-                if (game.turn == 1) {
-                    game.turn = 2;
-                } else {
-                    game.turn = 1;
-                }
+                game.turn = if (game.turn == 1) 2 else 1;
             }
         }
     }
@@ -88,23 +91,23 @@ module tic_tac_toe_sui::tic_tac_toe_sui {
         let mut i = 0;
         while (i < vector::length(&lines)) {
             let line = vector::borrow(&lines, i);
-            let a = *vector::borrow(board, *vector::borrow(line, 0));
-            let b = *vector::borrow(board, *vector::borrow(line, 1));
-            let c = *vector::borrow(board, *vector::borrow(line, 2));
-            if (a != 0u8 && a == b && b == c) {
-                if (a == 1u8) {
-                    return RESULT_X_WINS;
-                } else {
-                    return RESULT_O_WINS;
-                };
+            let a = *vector::borrow(board, (*vector::borrow(line, 0) as u64));
+            let b = *vector::borrow(board, (*vector::borrow(line, 1) as u64));
+            let c = *vector::borrow(board, (*vector::borrow(line, 2) as u64));
+            if (a != 0 && a == b && b == c) {
+                if (a == 1) { 
+                    return RESULT_X_WINS 
+                } else { 
+                    return RESULT_O_WINS 
+                }
             };
             i = i + 1;
         };
-        return 0u8;
+        RESULT_NONE
     }
 
     fun make_lines(): vector<vector<u8>> {
-        let lines = vector::empty<vector<u8>>();
+        let mut lines = vector::empty();
         vector::push_back(&mut lines, make_vec3(0,1,2));
         vector::push_back(&mut lines, make_vec3(3,4,5));
         vector::push_back(&mut lines, make_vec3(6,7,8));
@@ -117,7 +120,7 @@ module tic_tac_toe_sui::tic_tac_toe_sui {
     }
 
     fun make_vec3(a: u8, b: u8, c: u8): vector<u8> {
-        let v = vector::empty<u8>();
+        let mut v = vector::empty();
         vector::push_back(&mut v, a);
         vector::push_back(&mut v, b);
         vector::push_back(&mut v, c);
@@ -127,11 +130,11 @@ module tic_tac_toe_sui::tic_tac_toe_sui {
     fun is_draw(board: &vector<u8>): bool {
         let mut i = 0;
         while (i < vector::length(board)) {
-            if (*vector::borrow(board, i) == 0u8) {
-                return false;
+            if (*vector::borrow(board, i) == 0) {
+                return false
             };
             i = i + 1;
         };
-        return true;
+        true
     }
 }

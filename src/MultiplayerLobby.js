@@ -229,7 +229,7 @@ export default function MultiplayerLobby({ onBack }) {
   }
 
   return (
-    <div className="p-6 max-w-lg mx-auto">
+    <div className="lobby-container">
       <h1 className="text-3xl font-bold mb-6 text-center">Online Multiplayer Lobby</h1>
 
       <button
